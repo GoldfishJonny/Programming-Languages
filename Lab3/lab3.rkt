@@ -125,7 +125,7 @@
 ; when (plusC (numC 25) (numC 26)) is inputted, it returns (plusC (numC 26) (numC 25))
 ; when (multC (plusC (numC 1) (numC 2)) (numC 3)) is inputted
 ;     it returns (multC (plusC (numC 2) (numC 1)) (numC 3))
-; when an ArithC is given and has plusC, the numbers will be swapped
+; when an ArithC is given and has plusC, the numbers will be swapped for plusC
 (define (swap-adds [a : ArithC]) : ArithC
   (printf "~a\n" a)
   (match a
@@ -138,6 +138,7 @@
 (check-equal? (swap-adds (numC 25)) (numC 25))
 (check-equal? (swap-adds (plusC (numC 25) (numC 26))) (plusC (numC 26) (numC 25)))
 (check-equal? (swap-adds (multC (plusC (numC 1) (numC 2)) (numC 3))) (multC (plusC (numC 2) (numC 1)) (numC 3)))
+(check-equal? (swap-adds (squareC (plusC (numC 1) (numC 2)))) (squareC (plusC (numC 2) (numC 1))))
 
 
 ;;; parse
