@@ -1,0 +1,20 @@
+#lang typed/racket
+
+(require typed/rackunit)
+
+;;; parse000 : Sexp -> Boolean
+
+; Example
+; when (list 1 'chris 'a) is inputted, it returns true
+; when (list 'a 'chris 'b) is inputted, it returns false
+; when (list 1 'a 'a) is inputted, it returns false
+; when (list 2 'chris 'b) is inputted, it returns true
+
+; When a list is inputted with a number, 'chris and symbol it returns true
+(define-type p000 (Listof Sexp))
+
+
+(define (parse000 [expression : Sexp ])
+  (match expression
+    [(list [num : Real] (list [])])
+  )
