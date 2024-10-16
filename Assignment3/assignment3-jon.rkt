@@ -10,12 +10,22 @@
 (struct numC ([n : Real]) #:transparent)
 (struct plusC ([l : ExprC] [r : ExprC]) #:transparent)
 (struct multC ([l : ExprC] [r : ExprC]) #:transparent)
+(struct binopC ([op : Symbol] [l : ExprC] [r : ExprC]) #:transparent)
 (struct squareC ([a : ExprC]) #:transparent)
 (struct appC ([fns : Symbol] [arg : ExprC]) #:transparent)
 (struct idC ([n : Symbol]) #:transparent)
 
 ; FundefC
 (struct FundefC ([name : Symbol] [param : Symbol] [body : ExprC]) #:transparent)
+
+; Retrieves the function definition
+(define (get-fundef [name : Symbol] [funs : (Listof FundefC)]) : FundefC
+  (match funs
+    ['() (error 'get-fundef "AAQZ function ~e not found" name)]
+    [(cons (FundefC name arg body) rest)
+     (cond
+       [(symbol=? name name) (FundefC name arg body)] 
+       [else (get-fundef name rest)])]))
 
 ; Converts a given S-expression into an ArithC expression
 (define (parse [s : Sexp]) : ExprC
@@ -29,11 +39,15 @@
 
 ; Parses a function definition
 (define (parse-fundef [s : Sexp]) : FundefC
-  (printf "~s\n" s)
   (match s
     [(list 'def (? symbol? sym) (list (list (? symbol? param)) '=> body))
      (FundefC sym param (parse body))]
     [_ (error 'parse-fundef "AAQZ function header format is incorrect, got ~e" s)]))
+
+; Parses the entire program
+;(define (parse-prog [s : Sexp]) : (Listof FundefC)
+;  (match s
+;    []))
 
 ; Evaluates the given ExprC expression and returns its numeric result.
 ;(define (interp [a : ExprC]) : Real
@@ -61,6 +75,12 @@
 
 
 ; parse-fundef
-(parse-fundef '{def helloWorld {(x) => {+ x 5}}})
+;(parse-fundef '{def helloWorld {(x) => {+ x 5}}})
 (define deffun : FundefC (FundefC 'helloWorld 'x (plusC (idC 'x) (numC 5))))
-;(check-equal? (parse-fundef '{def helloWorld {(x) =>{+ x 5}}}) deffun)
+(check-equal? (parse-fundef '{def helloWorld {(x) =>{+ x 5}}}) deffun)
+
+; Test Cases get-fundef
+(define test1 : FundefC (FundefC 'name 'x (idC 'x)))
+(check-exn (regexp (regexp-quote "AAQZ function 'name not found"))
+           (λ () (get-fundef 'name '())))
+(check-equal? (get-fundef 'name (list test1)) test1)
