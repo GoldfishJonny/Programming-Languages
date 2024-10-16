@@ -6,39 +6,61 @@
 ;Error messages must be good enough to help the user understand what went wrong
 
 ; ExprC
-(define-type ExprC (U numC plusC multC squareC))
+(define-type ExprC (U numC plusC multC squareC appC idC))
 (struct numC ([n : Real]) #:transparent)
 (struct plusC ([l : ExprC] [r : ExprC]) #:transparent)
 (struct multC ([l : ExprC] [r : ExprC]) #:transparent)
 (struct squareC ([a : ExprC]) #:transparent)
+(struct appC ([fns : Symbol] [arg : ExprC]) #:transparent)
+(struct idC ([n : Symbol]) #:transparent)
 
 ; FundefC
-(struct FundefC ([name : Symbol] [param : Symbol] [body : ExprC]))
+(struct FundefC ([name : Symbol] [param : Symbol] [body : ExprC]) #:transparent)
 
 ; Converts a given S-expression into an ArithC expression
 (define (parse [s : Sexp]) : ExprC
   (match s
+    [(? symbol? id) (idC id)]
     [(? real? n) (numC n)]
     [(list '+ l r) (plusC (parse l) (parse r))]
     [(list '* l r) (multC (parse l) (parse r))]
     [(list '^2 a) (squareC (parse a))]
-    [other (error 'parse "AAQZ poor formatting, got ~e" s)]))
+    [other (error 'parse "AAQZ s-expression format is incorrect, got ~e" s)]))
+
+; Parses a function definition
+(define (parse-fundef [s : Sexp]) : FundefC
+  (printf "~s\n" s)
+  (match s
+    [(list 'def (? symbol? sym) (list (list (? symbol? param)) '=> body))
+     (FundefC sym param (parse body))]
+    [_ (error 'parse-fundef "AAQZ function header format is incorrect, got ~e" s)]))
 
 ; Evaluates the given ExprC expression and returns its numeric result.
-(define (interp [a : ExprC]) : Real
-  (match a
-    [(numC n) n]
-    [(plusC l r) (+ (interp l) (interp r))]
-    [(multC l r) (* (interp l) (interp r))]
-    [(squareC a) (define x (interp a)) (* x x)]))
+;(define (interp [a : ExprC]) : Real
+;  (match a
+;    [(numC n) n]
+;    [(plusC l r) (+ (interp l) (interp r))]
+;    [(multC l r) (* (interp l) (interp r))]
+;    [(squareC a) (define x (interp a)) (* x x)]))
 
-;
-;(define (top-interp [fun-sexps : Sexp]) : Real
- ; (interp-fns (parse-prog fun-sexps)))
+;()
+
+;(define (interp [exp : ExprC] [funs : (Listof FundefC)]) : Real
+;  )
 
 ;(define (interp-fns (funs : (listof FundefC))) : Real
- ; )
+;  ())
 
 ;(define (parse-prog [fun-sexps : Sexp]) : (Listof FundefC)
- ; )
-;(define ())
+;  )
+
+; top-interp
+;(define (top-interp [fun-sexps : Sexp]) : Real
+;  (interp-fns (parse-prog fun-sexps)))
+
+
+
+; parse-fundef
+(parse-fundef '{def helloWorld {(x) => {+ x 5}}})
+(define deffun : FundefC (FundefC 'helloWorld 'x (plusC (idC 'x) (numC 5))))
+;(check-equal? (parse-fundef '{def helloWorld {(x) =>{+ x 5}}}) deffun)
