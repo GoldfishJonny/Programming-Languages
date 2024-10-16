@@ -13,10 +13,7 @@
 (struct squareC ([a : ExprC]) #:transparent)
 
 ; FundefC
-(define-type
-  [fdC (name : Symbol)
-       (arg  : Symbol)
-       (body : ExprC)])
+(struct FundefC ([name : Symbol] [param : Symbol] [body : ExprC]))
 
 ; Converts a given S-expression into an ArithC expression
 (define (parse [s : Sexp]) : ExprC
