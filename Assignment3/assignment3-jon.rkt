@@ -16,7 +16,7 @@
 (struct idC ([n : Symbol]) #:transparent)
 
 ; FundefC
-(struct FundefC ([name : Symbol] [param : Symbol] [body : ExprC]) #:transparent)
+(struct FundefC ([name : Symbol] [param : (Listof Symbol)] [body : ExprC]) #:transparent)
 
 ; Retrieves the function definition
 (define (get-fundef [name : Symbol] [funs : (Listof FundefC)]) : FundefC
@@ -40,9 +40,13 @@
 ; Parses a function definition
 (define (parse-fundef [s : Sexp]) : FundefC
   (match s
-    [(list 'def (? symbol? sym) (list (list (? symbol? param)) '=> body))
-     (FundefC sym param (parse body))]
+    [(list 'def (? symbol? sym) '() '=> body) (FundefC sym '() (parse body))]
+    [(list 'def (? symbol? sym) (list (list (? symbol? param) ...) '=> body))
+     (FundefC sym (cast param (Listof Symbol)) (parse body))]
     [_ (error 'parse-fundef "AAQZ function header format is incorrect, got ~e" s)]))
+
+
+
 
 ; Parses the entire program
 ;(define (parse-prog [s : Sexp]) : (Listof FundefC)
@@ -74,13 +78,14 @@
 
 
 
-; parse-fundef
+; Test Cases parse-fundef
 ;(parse-fundef '{def helloWorld {(x) => {+ x 5}}})
-(define deffun : FundefC (FundefC 'helloWorld 'x (plusC (idC 'x) (numC 5))))
+(define deffun : FundefC (FundefC 'helloWorld '(x) (plusC (idC 'x) (numC 5))))
 (check-equal? (parse-fundef '{def helloWorld {(x) =>{+ x 5}}}) deffun)
+(check-equal? (parse-fundef '{def hello [() => {+ 5 5}]}) (FundefC 'hello '() (plusC (numC 5) (numC 5))))
 
 ; Test Cases get-fundef
-(define test1 : FundefC (FundefC 'name 'x (idC 'x)))
+(define test1 : FundefC (FundefC 'name '(x) (idC 'x)))
 (check-exn (regexp (regexp-quote "AAQZ function 'name not found"))
            (λ () (get-fundef 'name '())))
 (check-equal? (get-fundef 'name (list test1)) test1)
