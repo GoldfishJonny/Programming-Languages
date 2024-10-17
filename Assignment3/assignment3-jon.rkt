@@ -97,7 +97,8 @@
 
 ;(define (interp-fns (funs : (listof FundefC))) : Real
 ;  ())
-;this is the function that will be called by the top-level interpreter
+; interp-fns : (Listof FundefC) -> Real
+; Given a list of function definitions, look for the main function and evaluate it.
 (define (interp-fns [funs : (Listof FundefC)]) : Real
   (let ([main-fundef (get-fundef 'main funs)])
     (interp (FundefC-body main-fundef) funs)))
@@ -106,11 +107,12 @@
 ;  )
 
 ; top-interp
-;(define (top-interp [fun-sexps : Sexp]) : Real
-;  (interp-fns (parse-prog fun-sexps)))
-(define (top-interp [fun-sexps : Sexp] [name : Symbol] [arg : Real]) : Real
-  (interp-fns (parse-prog fun-sexps) name arg))
-
+; Parses and interprets the entire program
+; top-interp : Sexp -> Real
+; Given a program in S-expression form, parse it and evaluate it.
+(: top-interp (Sexp -> Real))
+(define (top-interp [fun-sexps : Sexp]) : Real
+  (interp-fns (parse-prog fun-sexps)))
 
 ; Test Cases parse-fundef
 ;(parse-fundef '{def helloWorld {(x) => {+ x 5}}})
