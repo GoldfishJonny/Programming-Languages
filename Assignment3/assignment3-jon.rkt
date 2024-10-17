@@ -10,7 +10,7 @@
 (struct numC ([n : Real]) #:transparent)
 (struct plusC ([l : ExprC] [r : ExprC]) #:transparent)
 (struct multC ([l : ExprC] [r : ExprC]) #:transparent)
-(struct binopC ([op : Symbol] [l : ExprC] [r : ExprC]) #:transparent)
+(struct binopC ([operator : Symbol] [l : ExprC] [r : ExprC]) #:transparent)
 (struct squareC ([a : ExprC]) #:transparent)
 (struct appC ([fns : Symbol] [arg : ExprC]) #:transparent)
 (struct idC ([n : Symbol]) #:transparent)
@@ -18,13 +18,20 @@
 ; FundefC
 (struct FundefC ([name : Symbol] [param : (Listof Symbol)] [body : ExprC]) #:transparent)
 
+; Returns true if given valid operations
+(define (valid-op? [s : Sexp]) : Boolean
+  (match s
+    [(or '+ '- '* '/) #t]
+    [_ #f]))
+
+
 ; Retrieves the function definition
 (define (get-fundef [name : Symbol] [funs : (Listof FundefC)]) : FundefC
   (match funs
-    ['() (error 'get-fundef "AAQZ function ~e not found" name)]
-    [(cons (FundefC name arg body) rest)
+    ['() (error 'get-fundef "AAQZ: function ~e not found" name)]
+    [(cons (FundefC fun arg body) rest)
      (cond
-       [(symbol=? name name) (FundefC name arg body)] 
+       [(symbol=? fun name) (FundefC name arg body)] 
        [else (get-fundef name rest)])]))
 
 ; Converts a given S-expression into an ArithC expression
@@ -35,7 +42,7 @@
     [(list '+ l r) (plusC (parse l) (parse r))]
     [(list '* l r) (multC (parse l) (parse r))]
     [(list '^2 a) (squareC (parse a))]
-    [other (error 'parse "AAQZ s-expression format is incorrect, got ~e" s)]))
+    [other (error 'parse "AAQZ: s-expression format is incorrect, got ~e" s)]))
 
 ; Parses a function definition
 (define (parse-fundef [s : Sexp]) : FundefC
@@ -43,10 +50,14 @@
     [(list 'def (? symbol? sym) '() '=> body) (FundefC sym '() (parse body))]
     [(list 'def (? symbol? sym) (list (list (? symbol? param) ...) '=> body))
      (FundefC sym (cast param (Listof Symbol)) (parse body))]
-    [_ (error 'parse-fundef "AAQZ function header format is incorrect, got ~e" s)]))
+    [_ (error 'parse-fundef "AAQZ: function header format is incorrect, got ~e" s)]))
 
-
-
+; Parses the entire program
+(define (parse-prog [s : Sexp]) : (Listof FundefC)
+  (match s
+    ['() '()]
+    [(cons f r) (cons (parse-fundef f) (parse-prog r))]
+    [_ (error 'parse-prog "AAQZ: invalid syntax, ~e" s)]))
 
 ; Parses the entire program
 ;(define (parse-prog [s : Sexp]) : (Listof FundefC)
