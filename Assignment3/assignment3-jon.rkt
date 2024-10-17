@@ -6,13 +6,11 @@
 ;Error messages must be good enough to help the user understand what went wrong
 
 ; ExprC
-(define-type ExprC (U numC plusC multC squareC appC idC))
+(define-type ExprC (U numC binopC appC idC ifleq0C))
 (struct numC ([n : Real]) #:transparent)
-(struct plusC ([l : ExprC] [r : ExprC]) #:transparent)
-(struct multC ([l : ExprC] [r : ExprC]) #:transparent)
 (struct binopC ([operator : Symbol] [l : ExprC] [r : ExprC]) #:transparent)
-(struct squareC ([a : ExprC]) #:transparent)
-(struct appC ([fns : Symbol] [arg : ExprC]) #:transparent)
+(struct appC ([fns : Symbol] [arg : (Listof ExprC)]) #:transparent)
+(struct ifleq0C ([if : ExprC] [then : ExprC] [else : ExprC]) #:transparent)
 (struct idC ([n : Symbol]) #:transparent)
 
 ; FundefC
@@ -24,6 +22,10 @@
     [(or '+ '- '* '/) #t]
     [_ #f]))
 
+(define (valid-id? [a : Any]) : Boolean
+  (match a
+    [(or '+ '- '* '/ 'def 'quote) #f]
+    [_ #t]))
 
 ; Retrieves the function definition
 (define (get-fundef [name : Symbol] [funs : (Listof FundefC)]) : FundefC
@@ -37,11 +39,13 @@
 ; Converts a given S-expression into an ArithC expression
 (define (parse [s : Sexp]) : ExprC
   (match s
-    [(? symbol? id) (idC id)]
-    [(? real? n) (numC n)]
-    [(list '+ l r) (plusC (parse l) (parse r))]
-    [(list '* l r) (multC (parse l) (parse r))]
-    [(list '^2 a) (squareC (parse a))]
+    [(? real? n) (numC n)] ; numC
+    [(list (? valid-op? binop) l r) (binopC (cast binop Symbol) (parse l) (parse r))] ; binopC
+    [(list (and (? valid-id? fns) (? symbol? fns)) args ...) ; appC
+     (define arg (map (lambda ([a : Sexp]) : ExprC (parse a)) args)) 
+     (appC fns arg)]
+    [(list 'ifleq0? if then else) (ifleq0C (parse if) (parse then) (parse else))] ; ifleq0C
+    [(and (? valid-id? sym) (? symbol? sym)) (idC sym)] ; idC
     [other (error 'parse "AAQZ: s-expression format is incorrect, got ~e" s)]))
 
 ; Parses a function definition
@@ -87,9 +91,9 @@
 
 ; Test Cases parse-fundef
 ;(parse-fundef '{def helloWorld {(x) => {+ x 5}}})
-(define deffun : FundefC (FundefC 'helloWorld '(x) (plusC (idC 'x) (numC 5))))
+(define deffun : FundefC (FundefC 'helloWorld '(x) (binopC '+ (idC 'x) (numC 5))))
 (check-equal? (parse-fundef '{def helloWorld {(x) =>{+ x 5}}}) deffun)
-(check-equal? (parse-fundef '{def hello [() => {+ 5 5}]}) (FundefC 'hello '() (plusC (numC 5) (numC 5))))
+(check-equal? (parse-fundef '{def hello [() => {+ 5 5}]}) (FundefC 'hello '() (binopC '+ (numC 5) (numC 5))))
 
 ; Test Cases get-fundef
 (define test1 : FundefC (FundefC 'name '(x) (idC 'x)))
@@ -98,4 +102,4 @@
 (check-equal? (get-fundef 'name (list test1)) test1)
 
 ; Test Cases parse-prog
-(check-equal? (parse-prog '{{def main {() => {+ 5 5}}}}) (list (FundefC 'main '() (plusC (numC 5) (numC 5)))))
+(check-equal? (parse-prog '{{def main {() => {+ 5 5}}}}) (list (FundefC 'main '() (binopC '+ (numC 5) (numC 5)))))
