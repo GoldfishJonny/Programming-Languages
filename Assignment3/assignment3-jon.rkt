@@ -2,15 +2,12 @@
 
 (require typed/rackunit)
 
-;All error messages must contain the string "AAQZ"
-;Error messages must be good enough to help the user understand what went wrong
-
 ; ExprC
 (define-type ExprC (U numC binopC appC idC ifleq0C))
 (struct numC ([n : Real]) #:transparent)
 (struct binopC ([operator : Symbol] [l : ExprC] [r : ExprC]) #:transparent)
-(struct appC ([fns : Symbol] [arg : (Listof ExprC)]) #:transparent)
-(struct ifleq0C ([if : ExprC] [then : ExprC] [else : ExprC]) #:transparent)
+(struct appC ([fun : Symbol] [arg : (Listof ExprC)]) #:transparent)
+(struct ifleq0C ([test : ExprC] [then : ExprC] [else : ExprC]) #:transparent)
 (struct idC ([n : Symbol]) #:transparent)
 
 ; FundefC
@@ -48,10 +45,10 @@
   (match s
     [(? real? n) (numC n)] ; numC
     [(list (? valid-op? binop) l r) (binopC (cast binop Symbol) (parse l) (parse r))] ; binopC
-    [(list (and (? valid-id? fns) (? symbol? fns)) args ...) ; appC
+    [(list (and (? valid-id? fun) (? symbol? fun)) args ...) ; appC
      (define arg (map (lambda ([a : Sexp]) : ExprC (parse a)) args)) 
-     (appC fns arg)]
-    [(list 'ifleq0? if then else) (ifleq0C (parse if) (parse then) (parse else))] ; ifleq0C
+     (appC fun arg)]
+    [(list 'ifleq0? test then else) (ifleq0C (parse test) (parse then) (parse else))] ; ifleq0C
     [(and (? valid-id? sym) (? symbol? sym)) (idC sym)] ; idC
     [other (error 'parse "AAQZ: s-expression format is incorrect, got ~e" s)]))
 
@@ -73,8 +70,18 @@
     [(cons l r) (cons (parse-fundef l) (parse-prog r))]
     [_ (error 'parse-prog "AAQZ: invalid syntax, ~e" s)]))
 
-; 
-
+; Substitute
+(define (subst [what : ExprC] [for : Symbol] [in : ExprC]) :ExprC
+  (match in
+    [(numC n) in]
+    [(binopC op l r)(binopC op (subst what for l) (subst what for r))]
+    [(idC n)
+     (cond
+       [(equal? n for) what]
+       [else in])]
+    [(appC fun arg) (appC fun (map (lambda ([a : Sexp]) : ExprC (parse a)) arg))]
+    [(ifleq0C test then else) (ifleq0C (subst what for test) (subst what for then) (subst what for else))]
+    ))
 
 
 ;(define (interp [exp : ExprC] [funs : (Listof FundefC)]) : Real
