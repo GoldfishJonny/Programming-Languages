@@ -61,18 +61,24 @@
 ;    [(multC l r) (* (interp l) (interp r))]
 ;    [(squareC a) (define x (interp a)) (* x x)]))
 
-;do interp for binopC
+; Updated interp for binopC, adding division by zero error
 (define (interp [a : ExprC]) : Real
   (match a
-    [(numC n) n]
-    [(plusC l r) (+ (interp l) (interp r))]
-    [(multC l r) (* (interp l) (interp r))]
-    [(squareC a) (define x (interp a)) (* x x)]
-    [(binopC op l r) (match op
-                      ['+ (+ (interp l) (interp r))]
-                      ['* (* (interp l) (interp r))]
-                      ['- (- (interp l) (interp r))]
-                      ['/ (/ (interp l) (interp r))])]))
+    [(numC n) n] ; base case for numbers
+    [(plusC l r) (+ (interp l) (interp r))] ; recursive case for addition
+    [(multC l r) (* (interp l) (interp r))] ; recursive case for multiplication
+    [(squareC a) (define x (interp a)) (* x x)] ; recursive case for squaring
+    [(binopC op l r)
+     (match op
+       ['+ (+ (interp l) (interp r))]
+       ['* (* (interp l) (interp r))]
+       ['- (- (interp l) (interp r))]
+       ['/ (if (zero? (interp r))
+               (error 'interp "AAQZ: Division by zero error")
+               (/ (interp l) (interp r)))]
+       [else (error 'interp "AAQZ: Unsupported operator ~e" op)])])) ; handle unexpected operators
+
+
 ;()
 
 ;(define (interp [exp : ExprC] [funs : (Listof FundefC)]) : Real
