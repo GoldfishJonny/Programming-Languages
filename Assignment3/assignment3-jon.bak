@@ -72,7 +72,7 @@
                       ['+ (+ (interp l) (interp r))]
                       ['* (* (interp l) (interp r))]
                       ['- (- (interp l) (interp r))]
-                      ['/ (/ (interp l) (interp r))])]))
+                      ['/ (/ (interp l) (interp r))])))
 ;()
 
 ;(define (interp [exp : ExprC] [funs : (Listof FundefC)]) : Real
