@@ -22,10 +22,17 @@
     [(or '+ '- '* '/) #t]
     [_ #f]))
 
+; Returns true if given valid id
 (define (valid-id? [a : Any]) : Boolean
   (match a
-    [(or '+ '- '* '/ 'def 'quote) #f]
+    [(or '+ '- '* '/ 'def 'ifleq0? '=>) #f]
     [_ #t]))
+
+; Returns true if duplicates are found
+(define (duplicates? [s : (Listof Symbol)]) : Boolean
+  (match s
+    ['() #f]
+    [(cons l r) (if (member l r) #t (duplicates? r))]))
 
 ; Retrieves the function definition
 (define (get-fundef [name : Symbol] [funs : (Listof FundefC)]) : FundefC
@@ -36,7 +43,7 @@
        [(symbol=? fun name) (FundefC name arg body)] 
        [else (get-fundef name rest)])]))
 
-; Converts a given S-expression into an ArithC expression
+; Converts a given S-expression into an ArithC expression, Returns ExprC
 (define (parse [s : Sexp]) : ExprC
   (match s
     [(? real? n) (numC n)] ; numC
@@ -48,31 +55,27 @@
     [(and (? valid-id? sym) (? symbol? sym)) (idC sym)] ; idC
     [other (error 'parse "AAQZ: s-expression format is incorrect, got ~e" s)]))
 
-; Parses a function definition
+; Parses a function definition, Returns FundefC
 (define (parse-fundef [s : Sexp]) : FundefC
   (match s
-    [(list 'def (? symbol? sym) '() '=> body) (FundefC sym '() (parse body))]
-    [(list 'def (? symbol? sym) (list (list (? symbol? param) ...) '=> body))
-     (FundefC sym (cast param (Listof Symbol)) (parse body))]
+    [(list 'def (? symbol? sym) (list param '=> body))
+     (define p : (Listof Symbol) (cast param (Listof Symbol)))
+     (cond
+       [(not (valid-id? sym)) (error 'parse-fundef "AAQZ: invalid function name, got ~e" sym)]
+       [(not (duplicates? p)) (FundefC sym p (parse body))]
+       [else (error 'parse-fundef "AAQZ: invalid syntax, got ~e" p)])]
     [_ (error 'parse-fundef "AAQZ: function header format is incorrect, got ~e" s)]))
 
-; Parses the entire program
+; Parses the entire program, Returns list of FundefC
 (define (parse-prog [s : Sexp]) : (Listof FundefC)
   (match s
     ['() '()]
-    [(cons f r) (cons (parse-fundef f) (parse-prog r))]
+    [(cons l r) (cons (parse-fundef l) (parse-prog r))]
     [_ (error 'parse-prog "AAQZ: invalid syntax, ~e" s)]))
 
+; 
 
-; Evaluates the given ExprC expression and returns its numeric result.
-;(define (interp [a : ExprC]) : Real
-;  (match a
-;    [(numC n) n]
-;    [(plusC l r) (+ (interp l) (interp r))]
-;    [(multC l r) (* (interp l) (interp r))]
-;    [(squareC a) (define x (interp a)) (* x x)]))
 
-;()
 
 ;(define (interp [exp : ExprC] [funs : (Listof FundefC)]) : Real
 ;  )
@@ -80,8 +83,6 @@
 ;(define (interp-fns (funs : (listof FundefC))) : Real
 ;  ())
 
-;(define (parse-prog [fun-sexps : Sexp]) : (Listof FundefC)
-;  )
 
 ; top-interp
 ;(define (top-interp [fun-sexps : Sexp]) : Real
