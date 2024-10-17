@@ -97,6 +97,10 @@
 
 ;(define (interp-fns (funs : (listof FundefC))) : Real
 ;  ())
+;this is the function that will be called by the top-level interpreter
+(define (interp-fns [funs : (Listof FundefC)]) : Real
+  (let ([main-fundef (get-fundef 'main funs)])
+    (interp (FundefC-body main-fundef) funs)))
 
 ;(define (parse-prog [fun-sexps : Sexp]) : (Listof FundefC)
 ;  )
@@ -104,7 +108,8 @@
 ; top-interp
 ;(define (top-interp [fun-sexps : Sexp]) : Real
 ;  (interp-fns (parse-prog fun-sexps)))
-
+(define (top-interp [fun-sexps : Sexp] [name : Symbol] [arg : Real]) : Real
+  (interp-fns (parse-prog fun-sexps) name arg))
 
 
 ; Test Cases parse-fundef
