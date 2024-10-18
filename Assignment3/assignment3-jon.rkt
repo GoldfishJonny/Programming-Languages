@@ -44,6 +44,7 @@
        [(equal? r 0) (error 'solve "AAQZ: cannot divide by 0, got ~e/~e" l r)]
        [else (/ l r)])]))
 
+
 ; Retrieves the function definition
 (define (get-fundef [name : Symbol] [funs : (Listof FundefC)]) : FundefC
   (match funs
@@ -128,6 +129,7 @@
     (interp (FundefC-body main) funs))
 
 ; top-interp
+<<<<<<< jon
 (define (top-interp [fun-sexps : Sexp]) : Real
   (interp-fns (parse-prog fun-sexps)))
 
@@ -172,6 +174,7 @@
 (check-equal? (parse '{ifleq0? 1 5 1}) (ifleq0C (numC 1) (numC 5) (numC 1)))
 (check-exn (regexp (regexp-quote "AAQZ: s-expression format is incorrect"))
            (λ () (parse '{5{}})))
+
 
 ; parse-fundef function
 (define deffun : FundefC (FundefC 'helloWorld '(x) (binopC '+ (idC 'x) (numC 5))))
