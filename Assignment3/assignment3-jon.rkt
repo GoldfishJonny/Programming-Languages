@@ -31,6 +31,17 @@
     ['() #f]
     [(cons l r) (if (member l r) #t (duplicates? r))]))
 
+; Returns the value of the Arithmetic Problem
+(define (solve [op : Symbol] [l : Real] [r : Real]) : Real
+  (match op
+    ['+ (+ l r)]
+    ['- (- l r)]
+    ['* (* l r)]
+    ['/
+     (cond
+       [(equal? r 0) (error 'solve "AAQZ: cannot divide by 0, got ~e/~e" l r)]
+       [else (/ l r)])]))
+
 ; Retrieves the function definition
 (define (get-fundef [name : Symbol] [funs : (Listof FundefC)]) : FundefC
   (match funs
@@ -71,31 +82,52 @@
     [_ (error 'parse-prog "AAQZ: invalid syntax, ~e" s)]))
 
 ; Substitute
-(define (subst [what : ExprC] [for : Symbol] [in : ExprC]) :ExprC
+(define (subst [what : ExprC] [for : Symbol] [in : ExprC]) : ExprC
   (match in
-    [(numC n) in]
-    [(binopC op l r)(binopC op (subst what for l) (subst what for r))]
-    [(idC n)
+    [(numC n) in] ; numC
+    [(binopC op l r)(binopC op (subst what for l) (subst what for r))] ; binopC
+    [(idC n) ; idC
      (cond
        [(equal? n for) what]
        [else in])]
-    [(appC fun arg) (appC fun (map (lambda ([a : Sexp]) : ExprC (parse a)) arg))]
-    [(ifleq0C test then else) (ifleq0C (subst what for test) (subst what for then) (subst what for else))]
+    [(appC fun arg) (appC fun (map (lambda ([a : ExprC]) : ExprC (subst what for a)) arg))] ; appC
+    [(ifleq0C test then else) (ifleq0C (subst what for test) (subst what for then) (subst what for else))] ; ifleq0C
     ))
 
+; Recursive Substitution
+(define (subst-all [e : (Listof ExprC)] [param : (Listof Symbol)] [body : ExprC]) : ExprC
+  (match (list e param)
+    [(list '() '()) body]
+    [(list (cons l r) (cons f b)) (subst-all r b (subst l f body))]))
 
-;(define (interp [exp : ExprC] [funs : (Listof FundefC)]) : Real
-;  )
+; interp
+(define (interp [exp : ExprC] [funs : (Listof FundefC)]) : Real
+  (match exp
+    [(numC n) n]
+    [(binopC op l r) (solve op (interp l funs) (interp r funs))]
+    [(appC fun arg)
+     (define values (map (lambda ([a : ExprC]) : Real (interp a funs)) arg))
+     (define parameters (map (lambda ([a : Real]) : ExprC (numC a)) values))
+     (match (get-fundef fun funs)
+       [(FundefC _ param body)
+        (cond 
+          [(equal? (length arg) (length param))
+           (interp (subst-all parameters param body) funs)]
+          [else (error 'interp "AAQZ: number of arguments != number of parameters, given ~e, ~e" values param)])])]
+    [(ifleq0C test then else)
+     (cond
+       [(<= (interp test funs) 0) (interp then funs)]
+       [else (interp else funs)])]
+    [(idC n) (error 'interp "AAQZ: Error with subst, got ~e" n)]))
 
-;(define (interp-fns (funs : (listof FundefC))) : Real
-;  ())
-
+; interp-fns
+(define (interp-fns [funs : (Listof FundefC)]) : Real
+  (define main (get-fundef 'main funs))
+    (interp (FundefC-body main) funs))
 
 ; top-interp
-;(define (top-interp [fun-sexps : Sexp]) : Real
-;  (interp-fns (parse-prog fun-sexps)))
-
-
+(define (top-interp [fun-sexps : Sexp]) : Real
+  (interp-fns (parse-prog fun-sexps)))
 
 ; Test Cases parse-fundef
 ;(parse-fundef '{def helloWorld {(x) => {+ x 5}}})
@@ -111,3 +143,13 @@
 
 ; Test Cases parse-prog
 (check-equal? (parse-prog '{{def main {() => {+ 5 5}}}}) (list (FundefC 'main '() (binopC '+ (numC 5) (numC 5)))))
+
+; Test cases for top-interp
+(define prog1 '{
+                {def hello {
+                            (x) => {+ x 5}}}
+                {def main {
+                           () => {hello 5}}}
+                })
+(check-equal? (top-interp prog1) 10)
+(top-interp prog1)
