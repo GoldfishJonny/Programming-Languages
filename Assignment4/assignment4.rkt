@@ -6,7 +6,7 @@
 (define-type ExprC (U numC idC appC binopC lamC))
 (struct numC ([n : Real]) #:transparent)
 (struct idC ([n : Symbol]) #:transparent)
-(struct appC ([fun : ExprC] [arg : ExprC]) #:transparent)
+(struct appC ([fun : ExprC] [arg : (Listof ExprC)]) #:transparent)
 (struct binopC ([operator : Symbol] [l : ExprC] [r : ExprC]) #:transparent)
 (struct lamC ([arg : (Listof Symbol)] [body : ExprC]) #:transparent)
 
@@ -72,8 +72,9 @@
     [(list (list (? symbol? param)...) '=> body)  ; lamC
      (define params (cast param (Listof Symbol)))    
      (lamC params (parse body))]
-    [(list fun arg) ; appC
-     (appC (parse fun) (parse arg))]  
+    [(list fun args ...); appC
+     (define arg (map (lambda ([a : Sexp]) : ExprC (parse a)) args))
+     (appC (parse fun) arg)]
     [(and (? valid-id? sym) (? symbol? sym)) (idC sym)] ; idC
     [other (error 'parse "AAQZ: s-expression format is incorrect, got ~e" s)]))
 
@@ -100,14 +101,14 @@
     [(idC n) (lookup n env)] ;idC
     [(lamC a b) (closV a b env)] ;funV
     [(binopC op l r) (solve op (interp l env) (interp r env))] ;binop
-    [(appC fun arg) ;appC
+    [(appC fun args) ;appC
      (define fval (interp fun env))
-     (define values (interp arg env))
+     (define arg-values (map (lambda ([arg : ExprC]) : Value (interp arg env)) args))
      (match fval
        [(closV _ param body)
         (interp
          (closV-body fval)
-         (extend-all (closV-arg fval) (list values) env))])]))
+         (extend-all (closV-arg fval) arg-values env))])]))
 
 ; top-interp
 (define (top-interp [s : Sexp]) : String
@@ -118,6 +119,7 @@
 ;(interp (appC (idC 'f) (list (numC 5))) env)
 
 (define prog1 '{{(z) => {+ z 3}} 2})
+(define prog2 '{{(z y) => {+ z y}} {+ 9 14} 98})
 
-(parse prog1)
-(top-interp prog1)
+(parse prog2)
+(top-interp prog2)
