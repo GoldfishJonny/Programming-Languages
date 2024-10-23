@@ -3,11 +3,10 @@
 (require typed/rackunit)
 
 ; ExprC
-(define-type ExprC (U numC idC appC binopC lamC))
+(define-type ExprC (U numC idC appC lamC))
 (struct numC ([n : Real]) #:transparent)
 (struct idC ([n : Symbol]) #:transparent)
 (struct appC ([fun : ExprC] [arg : (Listof ExprC)]) #:transparent)
-(struct binopC ([operator : Symbol] [l : ExprC] [r : ExprC]) #:transparent)
 (struct lamC ([arg : (Listof Symbol)] [body : ExprC]) #:transparent)
 
 ;Environment
@@ -17,11 +16,11 @@
 (define extend-env cons)
 
 ; Value
-(define-type Value (U numV closV boolV))
+(define-type Value (U numV closV boolV primV))
 (struct numV ([n : Real]) #:transparent)
 (struct boolV ([b : Boolean]) #:transparent)
 (struct closV ([arg : (Listof Symbol)] [body : ExprC] [env : EnvC]) #:transparent)
-
+(struct primV ([n : Symbol]) #:transparent)
 
 ; Returns an EnvC that contains variables that are more than 1
 (define (extend-all[params : (Listof Symbol)] [args : (Listof Value)] [env : EnvC]) : EnvC
@@ -33,7 +32,13 @@
 (define top-env
   (list
    (bindC 'true (boolV #true))
-   (bindC 'false (boolV #false))))
+   (bindC 'false (boolV #false))
+   (bindC '+ (primV '+))
+   (bindC '- (primV '-))
+   (bindC '* (primV '*))
+   (bindC '/ (primV '/))
+   (bindC '<= (primV '<=))
+   (bindC 'equal? (primV 'equal?))))
 
 ; Returns true if given valid operations
 (define (valid-op? [s : Sexp]) : Boolean
@@ -44,7 +49,7 @@
 ; Returns true if given valid id
 (define (valid-id? [a : Any]) : Boolean
   (match a
-    [(or '+ '- '* '/ 'def 'ifleq0? '=>) #f]
+    [(or 'def 'ifleq0? '=>) #f]
     [_ #t]))
 
 ; Returns true if duplicates are found
@@ -58,17 +63,18 @@
     (match (list op l r)
     [(list '+ (? numV? l) (? numV? r)) (numV (+ (numV-n l) (numV-n r)))]  ; Addition
     [(list '- (? numV? l) (? numV? r)) (numV (- (numV-n l) (numV-n r)))]  ; Subtraction
-    [(list'* (? numV? l) (? numV? r)) (numV (* (numV-n l) (numV-n r)))]  ; Multiplication
-    [(list'/ (? numV? l) (? numV? r))
+    [(list '* (? numV? l) (? numV? r)) (numV (* (numV-n l) (numV-n r)))]  ; Multiplication
+    [(list '/ (? numV? l) (? numV? r))
      (cond
        [(equal? r 0) (error 'solve "AAQZ: cannot divide by 0, got ~e/~e" l r)]
-       [else (numV (/ (numV-n l) (numV-n r)))])]))
+       [else (numV (/ (numV-n l) (numV-n r)))])]
+    [(list '<= (? numV? l) (? numV? r)) (boolV (<= (numV-n l) (numV-n r)))]
+    [(list 'equal? l r) (boolV (equal? l r))]))
 
 ; Converts a given S-expression into an ArithC expression, Returns ExprC
 (define (parse [s : Sexp]) : ExprC
   (match s
     [(? real? n) (numC n)] ; numC
-    [(list (? valid-op? binop) l r) (binopC (cast binop Symbol) (parse l) (parse r))] ; binopC
     [(list (list (? symbol? param)...) '=> body)  ; lamC
      (define params (cast param (Listof Symbol)))    
      (lamC params (parse body))]
@@ -94,29 +100,28 @@
     [(boolV b) (format "~v" b)]
     [(closV _ _ _) (format "#<procedure>")]))
 
-; interp;
+; interp
 (define (interp [exp : ExprC] [env : EnvC]) : Value
   (match exp
     [(numC n) (numV n)] ;numV
     [(idC n) (lookup n env)] ;idC
     [(lamC a b) (closV a b env)] ;funV
-    [(binopC op l r) (solve op (interp l env) (interp r env))] ;binop
     [(appC fun args) ;appC
      (define fval (interp fun env))
-     (define arg-values (map (lambda ([arg : ExprC]) : Value (interp arg env)) args))
+     (define values (map (lambda ([arg : ExprC]) : Value (interp arg env)) args))
      (match fval
        [(closV _ param body)
         (interp
          (closV-body fval)
-         (extend-all (closV-arg fval) arg-values env))])]))
+         (extend-all (closV-arg fval) values env))]
+       [(primV n)
+        (match values
+          [(cons l1 (cons l2 r)) (solve n l1 l2)])])]))
 
 ; top-interp
 (define (top-interp [s : Sexp]) : String
   (serialize (interp (parse s) top-env)))
 
-;(define env (extend-env (bindC 'f (closV '(x) (binopC '+ (idC 'x) (numC 10)) mt-env)) mt-env))
-
-;(interp (appC (idC 'f) (list (numC 5))) env)
 
 (define prog1 '{{(z) => {+ z 3}} 2})
 (define prog2 '{{(z y) => {+ z y}} {+ 9 14} 98})
